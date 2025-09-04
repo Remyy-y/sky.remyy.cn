@@ -8,6 +8,8 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧱</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Required for time-based charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
@@ -30,41 +32,18 @@
         .chart-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
             height: 300px;
-            max-height: 40vh;
         }
-        @media (min-width: 768px) {
+         @media (min-width: 768px) {
             .chart-container {
                 height: 400px;
             }
         }
-        .skeleton {
-            background-color: #e2e8f0;
-            border-radius: 0.25rem;
-        }
-        .skeleton-text {
-            height: 1.25rem;
-            margin-top: 0.5rem;
-            transform-origin: left;
-        }
-        .skeleton-title {
-            height: 1.5rem;
-            width: 60%;
-        }
-        .skeleton-data {
-            height: 2.25rem;
-            width: 40%;
-            margin-top: 0.75rem;
-        }
-        .ping-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
+        .skeleton { background-color: #e2e8f0; border-radius: 0.25rem; }
+        .skeleton-text { height: 1.25rem; margin-top: 0.5rem; transform-origin: left; }
+        .skeleton-title { height: 1.5rem; width: 60%; }
+        .skeleton-data { height: 2.25rem; width: 40%; margin-top: 0.75rem; }
+        .ping-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     </style>
 </head>
 <body class="antialiased flex flex-col min-h-screen">
@@ -74,8 +53,8 @@
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-[#A58A73] tracking-tight">Minecraft 服务器状态</h1>
             <div class="mt-6 max-w-3xl mx-auto bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-4 rounded-md shadow-sm" role="alert">
-              <p class="font-bold">Tip:</p>
-              <p>整合包：ATM10-to-Sky(1.3.1)不删档更新，同步最新版本</p>
+                <p class="font-bold">Tip:</p>
+                <p>整合包：ATM10-to-Sky(1.3.1)不删档更新，同步最新版本</p>
             </div>
             <div class="mt-4">
                 <button id="join-group-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md active:scale-95">
@@ -97,7 +76,7 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="stat-card lg:col-span-2">
-                        <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 1 分钟)</h3>
+                        <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 24 小时)</h3>
                         <div class="chart-container">
                             <canvas id="tpsChart"></canvas>
                         </div>
@@ -119,7 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const CONFIG = {
         MINECRAFT_SERVER_ADDRESS: 'sky.remyy.cn',
-        PERFORMANCE_API_URL: 'https://mc2.remyy.cn/api/performance',
+        // --- CORRECTED API ENDPOINTS ---
+        // For live data on top cards (TPS & MSPT)
+        LIVE_PERFORMANCE_API_URL: 'https://mc2.remyy.cn/api/performance',
+        // For the historical chart, pointing to your new server
+        HISTORICAL_TPS_API_URL: 'http://120.26.22.128:3000/api/tps/history?period=24h',
+        // --- END CORRECTION ---
         SERVER_NODES: [
             { name: '洛阳节点', url: 'https://mc.remyy.cn:12905/ping.txt' },
             { name: '腾讯云北京', url: 'https://mc5.remyy.cn:8443/ping.txt' },
@@ -131,26 +115,24 @@ document.addEventListener('DOMContentLoaded', () => {
         status: document.getElementById('status-card'),
         players: document.getElementById('players-card'),
         tps: document.getElementById('tps-card'),
-        mspt: document.getElementById('mspt-card'), // Changed from cpu to mspt
+        mspt: document.getElementById('mspt-card'),
         playerList: document.getElementById('player-list-card'),
         network: document.getElementById('network-card')
     };
     
-    let tpsHistory = Array(12).fill(null);
     const ctx = document.getElementById('tpsChart').getContext('2d');
     const tpsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: Array(12).fill('').map((_, i) => `-${(11-i)*5}s`),
             datasets: [{
-                label: 'TPS',
-                data: tpsHistory,
+                label: 'Average TPS',
+                data: [], // Will be populated from your API
                 borderColor: '#A58A73',
                 backgroundColor: 'rgba(165, 138, 115, 0.1)',
                 fill: true,
                 tension: 0.4,
-                borderWidth: 3,
-                spanGaps: true,
+                borderWidth: 2,
+                pointRadius: 0,
             }]
         },
         options: {
@@ -158,220 +140,149 @@ document.addEventListener('DOMContentLoaded', () => {
             maintainAspectRatio: false,
             scales: {
                 y: { beginAtZero: false, max: 20.5, min: 0, grid: { color: '#E5E7EB' } },
-                x: { grid: { display: false } }
+                x: {
+                    type: 'time',
+                    time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+                    grid: { display: false },
+                    ticks: { autoSkip: true, maxTicksLimit: 12 }
+                }
             },
-            plugins: { legend: { display: false } },
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
             animation: { duration: 500 }
         }
     });
 
     const renderSkeleton = () => {
+        // This function remains the same, no changes needed.
         const skeletonHTML = (isPlayerList = false, isNetwork = false) => {
-            if (isPlayerList) {
-                return `
-                    <div class="animate-pulse">
-                        <div class="skeleton skeleton-title mx-auto mb-4"></div>
-                        <div class="skeleton skeleton-text w-full mb-2"></div>
-                        <div class="skeleton skeleton-text w-5/6 mb-2"></div>
-                        <div class="skeleton skeleton-text w-full mb-2"></div>
-                        <div class="skeleton skeleton-text w-4/6"></div>
-                    </div>
-                `;
-            }
-            if (isNetwork) {
-                return `
-                    <h3 class="text-xl font-bold text-center mb-4">线路延迟测试</h3>
-                    <div class="animate-pulse grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                        ${[...Array(3)].map(() => `
-                            <div>
-                                <div class="skeleton skeleton-title w-1/2 mx-auto"></div>
-                                <div class="skeleton skeleton-data w-1/3 mx-auto mt-2"></div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-            return `
-                <div class="animate-pulse flex flex-col items-center">
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-data"></div>
-                </div>
-            `;
+            if (isPlayerList) return `<div class="animate-pulse"><div class="skeleton skeleton-title mx-auto mb-4"></div><div class="skeleton skeleton-text w-full mb-2"></div><div class="skeleton skeleton-text w-5/6 mb-2"></div><div class="skeleton skeleton-text w-full mb-2"></div><div class="skeleton skeleton-text w-4/6"></div></div>`;
+            if (isNetwork) return `<h3 class="text-xl font-bold text-center mb-4">线路延迟测试</h3><div class="animate-pulse grid grid-cols-1 md:grid-cols-3 gap-4 text-center">${[...Array(3)].map(() => `<div><div class="skeleton skeleton-title w-1/2 mx-auto"></div><div class="skeleton skeleton-data w-1/3 mx-auto mt-2"></div></div>`).join('')}</div>`;
+            return `<div class="animate-pulse flex flex-col items-center"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-data"></div></div>`;
         };
-        cards.status.innerHTML = skeletonHTML();
-        cards.players.innerHTML = skeletonHTML();
-        cards.tps.innerHTML = skeletonHTML();
-        cards.mspt.innerHTML = skeletonHTML(); // Changed from cpu to mspt
-        cards.playerList.innerHTML = skeletonHTML(true);
-        cards.network.innerHTML = skeletonHTML(false, true);
+        Object.values(cards).forEach((card, i) => card.innerHTML = skeletonHTML(i === 4, i === 5));
     };
 
     const renderCard = (cardEl, icon, title, data, dataClass = 'text-[#A58A73]') => {
-        cardEl.innerHTML = `
-            <h3 class="text-lg font-semibold text-gray-500 mb-2 flex items-center justify-center gap-2">
-                ${icon}
-                <span>${title}</span>
-            </h3>
-            <p class="text-3xl font-bold ${dataClass}">${data}</p>
-        `;
+        cardEl.innerHTML = `<h3 class="text-lg font-semibold text-gray-500 mb-2 flex items-center justify-center gap-2">${icon}<span>${title}</span></h3><p class="text-3xl font-bold ${dataClass}">${data}</p>`;
     };
     
     const renderPlayerList = (players) => {
-        let listContent = '';
-        
-        if (players && Array.isArray(players.list) && players.list.length > 0) {
-            listContent = players.list.map(player => 
-                `<div class="flex items-center gap-2 p-1.5 bg-gray-50 rounded-md">
-                    <img src="https://cravatar.eu/helmavatar/${player.name_raw}/16.png" class="rounded" alt="${player.name_raw}">
-                    <span class="text-gray-700">${player.name_raw}</span>
-                </div>`
-            ).join('');
-        } else {
-            listContent = '<p class="text-gray-500 text-center">当前没有玩家在线，或服务器未开启玩家列表查询。</p>';
+        let listContent = (players?.list?.length > 0)
+            ? players.list.map(p => `<div class="flex items-center gap-2 p-1.5 bg-gray-50 rounded-md"><img src="https://cravatar.eu/helmavatar/${p.name_raw}/16.png" class="rounded" alt="${p.name_raw}"><span class="text-gray-700">${p.name_raw}</span></div>`).join('')
+            : '<p class="text-gray-500 text-center">当前没有玩家在线。</p>';
+        cards.playerList.innerHTML = `<h3 class="text-xl font-bold text-center mb-4">在线玩家</h3><div class="space-y-2 max-h-48 lg:flex-1 lg:max-h-none overflow-y-auto pr-2">${listContent}</div>`;
+    };
+
+    // --- REWRITTEN: Function to fetch and render historical chart data ---
+    async function fetchAndRenderTpsHistory() {
+        try {
+            const response = await fetch(CONFIG.HISTORICAL_TPS_API_URL);
+            if (!response.ok) throw new Error('Failed to fetch historical TPS data.');
+            const data = await response.json();
+            
+            // Adapt the new data structure {timestamp, tps: {average, min, max}}
+            const chartData = data.map(item => ({
+                x: new Date(item.timestamp),
+                y: item.tps.average // Use the average TPS for the chart line
+            }));
+            
+            tpsChart.data.datasets[0].data = chartData;
+            tpsChart.update();
+        } catch (error) {
+            console.error('Error updating TPS chart:', error);
         }
-
-        cards.playerList.innerHTML = `
-            <h3 class="text-xl font-bold text-center mb-4">在线玩家</h3>
-            <div class="space-y-2 max-h-48 lg:flex-1 lg:max-h-none overflow-y-auto pr-2">${listContent}</div>
-        `;
-    };
-
-    const updateChart = (newTps) => {
-        tpsHistory.shift();
-        tpsHistory.push(newTps);
-        tpsChart.data.datasets[0].data = tpsHistory;
-        tpsChart.update('none');
-    };
+    }
 
     async function pingNode(url) {
+        // This function remains the same, no changes needed.
         const startTime = performance.now();
         try {
             const response = await fetch(url, { method: 'HEAD', mode: 'cors', cache: 'no-cache' });
             if (!response.ok) throw new Error('Network response not OK');
-            const endTime = performance.now();
-            return Math.round(endTime - startTime);
-        } catch (error) {
-            return null;
-        }
+            return Math.round(performance.now() - startTime);
+        } catch (error) { return null; }
     }
 
     async function updateNetworkStatus() {
-        const pingPromises = CONFIG.SERVER_NODES.map(node => pingNode(node.url));
-        const results = await Promise.all(pingPromises);
-
+        // This function remains the same, no changes needed.
+        const results = await Promise.all(CONFIG.SERVER_NODES.map(node => pingNode(node.url)));
         const resultsHTML = CONFIG.SERVER_NODES.map((node, index) => {
             const latency = results[index];
-            let dotColor = 'bg-gray-400';
-            let latencyText = '超时';
-            let textColor = 'text-gray-500';
-
+            let dotColor = 'bg-gray-400', textColor = 'text-gray-500', latencyText = '超时';
             if (latency !== null) {
-                if (latency < 100) {
-                    dotColor = 'bg-green-500';
-                    textColor = 'text-green-600';
-                } else if (latency < 200) {
-                    dotColor = 'bg-yellow-500';
-                    textColor = 'text-yellow-600';
-                } else {
-                    dotColor = 'bg-red-500';
-                    textColor = 'text-red-600';
-                }
+                if (latency < 100) { dotColor = 'bg-green-500'; textColor = 'text-green-600'; }
+                else if (latency < 200) { dotColor = 'bg-yellow-500'; textColor = 'text-yellow-600'; }
+                else { dotColor = 'bg-red-500'; textColor = 'text-red-600'; }
                 latencyText = `${latency} ms`;
             }
-
-            return `
-                <div class="p-2">
-                    <h4 class="font-semibold text-gray-600">${node.name}</h4>
-                    <p class="text-2xl font-bold ${textColor} mt-1 flex items-center justify-center gap-2">
-                        <span class="${dotColor} ping-dot"></span>
-                        <span>${latencyText}</span>
-                    </p>
-                </div>
-            `;
+            return `<div class="p-2"><h4 class="font-semibold text-gray-600">${node.name}</h4><p class="text-2xl font-bold ${textColor} mt-1 flex items-center justify-center gap-2"><span class="${dotColor} ping-dot"></span><span>${latencyText}</span></p></div>`;
         }).join('');
-
-        cards.network.innerHTML = `
-            <h3 class="text-xl font-bold text-center mb-4">线路延迟测试</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">${resultsHTML}</div>
-        `;
+        cards.network.innerHTML = `<h3 class="text-xl font-bold text-center mb-4">线路延迟测试</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">${resultsHTML}</div>`;
     }
 
-    async function updateAllStatus() {
+    async function updateLiveStatusCards() {
         updateNetworkStatus();
 
         const icons = {
             status: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>',
             players: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>',
             tps: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>',
-            mspt: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' // New icon for MSPT
+            mspt: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
         };
-        let isOnline = false;
-        let playersData = null;
 
+        let serverInfo;
         try {
             const response = await fetch(`https://api.mcstatus.io/v2/status/java/${CONFIG.MINECRAFT_SERVER_ADDRESS}`);
-            if (!response.ok) throw new Error('Network response from mcstatus.io was not ok.');
-            const data = await response.json();
-            isOnline = data.online;
-            playersData = data.players;
-
-            if (data.online) {
-                renderCard(cards.status, icons.status, '服务器状态', '在线', 'text-green-500');
-                renderCard(cards.players, icons.players, '在线玩家', `${playersData.online} / ${playersData.max}`);
-            } else {
-                renderCard(cards.status, icons.status, '服务器状态', '离线', 'text-red-500');
-                renderCard(cards.players, icons.players, '在线玩家', 'N/A');
-                renderCard(cards.tps, icons.tps, '服务器 TPS', 'N/A');
-                renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', 'N/A'); // Changed from cpu to mspt
-                renderPlayerList(null);
-                updateChart(0);
-                return;
-            }
+            if (!response.ok) throw new Error('mcstatus.io API error.');
+            serverInfo = await response.json();
         } catch (error) {
             console.error('Error fetching basic status:', error);
             renderCard(cards.status, icons.status, '服务器状态', '错误', 'text-yellow-500');
             return;
         }
 
-        if (isOnline) {
-            renderPlayerList(playersData);
+        if (serverInfo.online) {
+            renderCard(cards.status, icons.status, '服务器状态', '在线', 'text-green-500');
+            renderCard(cards.players, icons.players, '在线玩家', `${serverInfo.players.online} / ${serverInfo.players.max}`);
+            renderPlayerList(serverInfo.players);
+
+            // Fetch live performance data for the top cards
             try {
-                const response = await fetch(CONFIG.PERFORMANCE_API_URL);
-                if (!response.ok) throw new Error('Network response from performance API was not ok.');
-                const data = await response.json();
+                const perfResponse = await fetch(CONFIG.LIVE_PERFORMANCE_API_URL);
+                if (!perfResponse.ok) throw new Error('Live performance API error.');
+                const perfData = await perfResponse.json();
                 
-                const tpsValue = data.tps ? data.tps : 'N/A';
-                const msptValue = data.mspt ? `${data.mspt} ms` : 'N/A';
+                const tpsValue = perfData.tps ? parseFloat(perfData.tps).toFixed(2) : 'N/A';
+                const msptValue = perfData.mspt ? `${parseFloat(perfData.mspt).toFixed(2)} ms` : 'N/A';
 
                 renderCard(cards.tps, icons.tps, '服务器 TPS', tpsValue);
-                renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', msptValue); // Changed from cpu to mspt
-                updateChart(parseFloat(tpsValue) || 0);
-
+                renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', msptValue);
             } catch (error) {
-                console.error('Error fetching performance status:', error);
+                console.error('Error fetching live performance status:', error);
                 renderCard(cards.tps, icons.tps, '服务器 TPS', '无法获取');
-                renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', '无法获取'); // Changed from cpu to mspt
-                updateChart(0);
+                renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', '无法获取');
             }
+        } else {
+            renderCard(cards.status, icons.status, '服务器状态', '离线', 'text-red-500');
+            renderCard(cards.players, icons.players, '在线玩家', 'N/A');
+            renderCard(cards.tps, icons.tps, '服务器 TPS', 'N/A');
+            renderCard(cards.mspt, icons.mspt, 'Tick 耗时 (MSPT)', 'N/A');
+            renderPlayerList(null);
         }
     }
     
-    const joinBtn = document.getElementById('join-group-btn');
-    joinBtn.addEventListener('click', () => {
-        const groupLink = 'https://qm.qq.com/cgi-bin/qm/qr?k=i9Nfx_T_oumj3CU0XsaDQT0eVoGpJbSD&jump_from=webapi&authKey=v/Fw9mwB4r32JnOJxNv/5CaBgnXrlOooWKVkOh/6getG5Os4Y5no3BGwugM4OXpd';
-        window.open(groupLink, '_blank');
+    document.getElementById('join-group-btn').addEventListener('click', () => {
+        window.open('https://qm.qq.com/cgi-bin/qm/qr?k=i9Nfx_T_oumj3CU0XsaDQT0eVoGpJbSD&jump_from=webapi&authKey=v/Fw9mwB4r32JnOJxNv/5CaBgnXrlOooWKVkOh/6getG5Os4Y5no3BGwugM4OXpd', '_blank');
     });
 
+    // --- MODIFIED: Initial loading logic ---
     renderSkeleton();
-    updateAllStatus();
-    setInterval(updateAllStatus, 5000);
+    fetchAndRenderTpsHistory(); // Load the historical chart once
+    updateLiveStatusCards(); // Load the live status cards
+    setInterval(updateLiveStatusCards, 10000); // Refresh live status cards every 10 seconds
 });
 </script>
 
 </body>
-
 </html>
-
-
-
 
