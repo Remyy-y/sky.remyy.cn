@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft 服务器实时状态</title>
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧱</text></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Required for time-based charts -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <style>
+ <head> 
+  <meta charset="UTF-8" /> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> 
+  <title>Minecraft 服务器实时状态</title> 
+  <!-- Favicon --> 
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;&#55358;&#56817;&lt;/text&gt;&lt;/svg&gt;" /> 
+  <script src="https://cdn.tailwindcss.com"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+  <!-- Required for time-based charts --> 
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script> 
+  <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
             background-color: #F8F9FA;
@@ -44,56 +44,64 @@
         .skeleton-title { height: 1.5rem; width: 60%; }
         .skeleton-data { height: 2.25rem; width: 40%; margin-top: 0.75rem; }
         .ping-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    </style>
-</head>
-<body class="antialiased flex flex-col min-h-screen">
-
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-        
-        <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-[#A58A73] tracking-tight">Minecraft 服务器状态</h1>
-            <div class="mt-6 max-w-3xl mx-auto bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-4 rounded-md shadow-sm" role="alert">
-                <p class="font-bold">Tip:</p>
-                <p>整合包：ATM10-to-Sky(1.3.1)不删档更新，同步最新版本</p>
-            </div>
-            <div class="mt-4">
-                <button id="join-group-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md active:scale-95">
-                    点击加入群组
-                </button>
-            </div>
-        </header>
-
-        <main>
-            <div id="content-dashboard">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div id="status-card" class="stat-card text-center"></div>
-                    <div id="players-card" class="stat-card text-center"></div>
-                    <div id="tps-card" class="stat-card text-center"></div>
-                    <div id="mspt-card" class="stat-card text-center"></div>
-                </div>
-
-                <div id="network-card" class="stat-card mb-6"></div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="stat-card lg:col-span-2">
-                        <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 24 小时)</h3>
-                        <div class="chart-container">
-                            <canvas id="tpsChart"></canvas>
-                        </div>
-                    </div>
-                    <div id="player-list-card" class="stat-card lg:flex lg:flex-col"></div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <footer class="text-center py-4">
-        <p class="text-sm text-gray-500">
-            Crafted by <a href="https://remyy.cn/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-700 transition-colors">Remyy</a> in 2025
-        </p>
-    </footer>
-
-<script>
+    </style> 
+  <script type="text/javascript">
+    function show_runtime() {
+        window.setTimeout("show_runtime()", 1000);
+        X = new Date("2/24/2025 10:28:00");
+        Y = new Date();
+        T = (Y.getTime() - X.getTime());
+        M = 24 * 60 * 60 * 1000;
+        a = T / M;
+        A = Math.floor(a);
+        b = (a - A) * 24;
+        B = Math.floor(b);
+        c = (b - B) * 60;
+        C = Math.floor((b - B) * 60);
+        D = Math.floor((c - C) * 60);
+        runtime_span.innerHTML = "本服务器已上线运行: " + A + "天" + B + "小时" + C + "分" + D + "秒"
+    }
+    show_runtime();
+</script> 
+ </head> 
+ <body class="antialiased flex flex-col min-h-screen"> 
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow"> 
+   <header class="text-center mb-8"> 
+    <h1 class="text-4xl md:text-5xl font-bold text-[#A58A73] tracking-tight">Minecraft 服务器状态</h1> 
+    <div class="mt-6 max-w-3xl mx-auto bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-4 rounded-md shadow-sm" role="alert"> 
+     <p class="font-bold">Tip:</p> 
+     <p>整合包：ATM10-to-Sky(1.3.1)不删档更新，同步最新版本</p> 
+    </div> 
+    <div class="mt-4"> 
+     <button id="join-group-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md active:scale-95"> 点击加入群组 </button> 
+    </div> 
+   </header> 
+   <main> 
+    <div id="content-dashboard"> 
+     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"> 
+      <div id="status-card" class="stat-card text-center"></div> 
+      <div id="players-card" class="stat-card text-center"></div> 
+      <div id="tps-card" class="stat-card text-center"></div> 
+      <div id="mspt-card" class="stat-card text-center"></div> 
+     </div> 
+     <div id="network-card" class="stat-card mb-6"></div> 
+     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
+      <div class="stat-card lg:col-span-2"> 
+       <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 24 小时)</h3> 
+       <div class="chart-container"> 
+        <canvas id="tpsChart"></canvas> 
+       </div> 
+      </div> 
+      <div id="player-list-card" class="stat-card lg:flex lg:flex-col"></div> 
+     </div> 
+    </div> 
+   </main> 
+  </div> 
+  <footer class="text-center py-4"> 
+   <span id="runtime_span"></span> 
+   <p class="text-sm text-gray-500"> Crafted by <a href="https://remyy.cn/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-700 transition-colors">Remyy</a> in 2025 </p> 
+  </footer> 
+  <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     const CONFIG = {
@@ -281,9 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLiveStatusCards(); // Load the live status cards
     setInterval(updateLiveStatusCards, 10000); // Refresh live status cards every 10 seconds
 });
-</script>
-
-</body>
+</script>   
+ </body>
 </html>
-
-
