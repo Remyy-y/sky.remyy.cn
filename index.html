@@ -94,7 +94,7 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="stat-card lg:col-span-2">
-                        <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 30 天)</h3>
+                        <h3 class="text-xl font-bold text-center mb-4">TPS 历史记录 (最近 15 天)</h3>
                         <div class="chart-container">
                             <canvas id="tpsChart"></canvas>
                         </div>
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // For live data on top cards (TPS & MSPT)
         LIVE_PERFORMANCE_API_URL: 'https://mc2.remyy.cn/api/performance',
         // For the historical chart, pointing to your new server
-        HISTORICAL_TPS_API_URL: 'https://tps.remyy.cn/api/tps/history?period=30d',
+        HISTORICAL_TPS_API_URL: 'https://tps.remyy.cn/api/tps/history?period=15d',
         // --- END CORRECTION ---
         SERVER_NODES: [
             { name: '洛阳节点', url: 'https://mc.remyy.cn:12905/ping.txt' },
@@ -304,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
 
 
 
